@@ -1,21 +1,24 @@
 {
-    "name": "koishi-plugin-wakatimes",
-    "description": "get wakatime view",
-    "version": "1.0.0",
-    "main": "lib/index.js",
-    "typings": "lib/index.d.ts",
-    "files": [
-      "lib",
-      "dist"
-    ],
-    "license": "MIT",
-    "keywords": [
-      "chatbot",
-      "koishi",
-      "plugin"
-    ],
-    "peerDependencies": {
-      "koishi": "^4.18.7"
-    }
+  "name": "koishi-plugin-wakatimes",
+  "description": "通过命令获取制定用户的wakatime",
+  "version": "0.1.0",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xhit-ux/koishi-plugin-wakatimes.git"
+  },
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin"
+  ],
+  "peerDependencies": {
+    "koishi": "^4.18.7"
   }
-  
+}
