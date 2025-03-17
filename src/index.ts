@@ -3,7 +3,7 @@ import axios from 'axios'
 import { createCanvas, loadImage, registerFont } from 'canvas'
 import path from 'path'
 
-export const name = 'wakatimes'
+export const name = 'wakaview'
 
 export interface Config {}
 
