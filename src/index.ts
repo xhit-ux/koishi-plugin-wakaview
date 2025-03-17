@@ -10,7 +10,7 @@ export interface Config {}
 export const Config: Schema<Config> = Schema.object({})
 
 export function apply(ctx: Context) {
-  ctx.command('wakatimes <username:string>', '查询 Wakatime 用户总代码时长和常用语言')
+  ctx.command('wakatime <username:string>', '查询 Wakatime 用户总代码时长和常用语言')
     .action(async ({ session }, username: string) => {
       if (!username) return '请提供 Wakatime 用户名！'
 
