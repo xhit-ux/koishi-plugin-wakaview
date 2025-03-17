@@ -1,2 +1,5 @@
-# koishi-pugn-wakatimes
-提供/wakatime指令获取用户code时长
+# koishi-plugin-wakatimes
+
+[![npm](https://img.shields.io/npm/v/koishi-plugin-wakatimes?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-wakatimes)
+
+get wakatime view
