@@ -1,7 +1,8 @@
 import { Context, Schema, h } from 'koishi'
 import axios from 'axios'
-import { createCanvas, loadImage, registerFont } from 'canvas'
+import { createCanvas, loadImage, GlobalFonts } from '@napi-rs/canvas'
 import path from 'path'
+import fs from 'fs'
 
 export const name = 'wakaview'
 
@@ -16,7 +17,6 @@ export function apply(ctx: Context) {
 
       try {
         // 获取 Wakatime 数据
-        
         const res = await axios.get(`https://wakatime.com/api/v1/users/${username}/stats`)
         if (res.data.error) {
           return '请检查用户名'
@@ -40,12 +40,20 @@ export function apply(ctx: Context) {
           return `用户 ${username} 没有可用的编码数据。`
         }
 
-        // 获取用户头像 URL（通过 Wakatime API 用户页面获取）
+        // 获取用户头像 URL
         const avatarUrl = await getAvatarUrl(username)
 
-        // 加载 **项目内的** 圆体字体
-        const fontPath = path.resolve(__dirname, '../assets/fonts/VarelaRound-Regular.ttf')
-        registerFont(fontPath, { family: 'Rounded' })
+        // 尝试加载自定义字体，如果失败则使用系统字体
+        try {
+          const fontPath = path.join(__dirname, '../assets/fonts/VarelaRound-Regular.ttf')
+          if (fs.existsSync(fontPath)) {
+            GlobalFonts.registerFromPath(fontPath, 'Rounded')
+          } else {
+            console.log('[wakatime] [WARN] 字体文件不存在，使用系统字体')
+          }
+        } catch (fontError) {
+          console.log('[wakatime] [WARN] 字体加载失败，使用系统字体:', fontError.message)
+        }
 
         // 创建 Canvas
         const canvasWidth = 500
@@ -53,114 +61,115 @@ export function apply(ctx: Context) {
         const canvas = createCanvas(canvasWidth, canvasHeight)
         const ctx = canvas.getContext('2d')
 
-        // 绘制背景
+        // 背景
         ctx.fillStyle = '#696969'
         ctx.fillRect(0, 0, canvasWidth, canvasHeight)
 
-        // 在 (100, 30) 到 (307, 420) 区间绘制亮黄色圆角矩形背景
-        const x = 30;  // 矩形的左上角 x 坐标
-        const y = 85;   // 矩形的左上角 y 坐标
-        const width = 435;  // 矩形的宽度 (307 - 100)
-        const height = 210; // 矩形的高度 (420 - 30)
-        const radius = 20;  // 圆角的半径
+        // 圆角矩形背景
+        const x = 30
+        const y = 85
+        const width = 435
+        const height = 210
+        const radius = 20
 
-        // 设置亮黄色
-        ctx.fillStyle = '#ffb6c1'  // 亮黄色
+        ctx.fillStyle = '#ffb6c1'
         ctx.beginPath()
-        ctx.moveTo(x + radius, y) // 将路径移动到矩形的左上角起点
-        ctx.arcTo(x + width, y, x + width, y + height, radius) // 圆角
-        ctx.arcTo(x + width, y + height, x, y + height, radius) // 圆角
-        ctx.arcTo(x, y + height, x, y, radius) // 圆角
-        ctx.arcTo(x, y, x + width, y, radius) // 圆角
+        ctx.moveTo(x + radius, y)
+        ctx.arcTo(x + width, y, x + width, y + height, radius)
+        ctx.arcTo(x + width, y + height, x, y + height, radius)
+        ctx.arcTo(x, y + height, x, y, radius)
+        ctx.arcTo(x, y, x + width, y, radius)
         ctx.closePath()
-        ctx.fill() // 填充颜色
+        ctx.fill()
 
-
-        // 设置字体
+        // 设置文字样式 - 直接使用字体回退机制
+        const fontFamily = 'Rounded' // 浏览器会自动回退到可用字体
+        
+        // 用户 & 时间
         ctx.fillStyle = '#ffffff'
-        ctx.font = '20px Rounded'
-        ctx.fillText(`User: ${username}`, 50, 45)
-        ctx.fillText(`Total coding time: ${totalCodingHours} hrs`, 50, 75)
+        ctx.font = `20px ${fontFamily}`
+        ctx.textBaseline = 'top' // 设置文字基线
+        ctx.fillText(`User: ${username}`, 50, 25)
+        ctx.fillText(`Total coding time: ${totalCodingHours} hrs`, 50, 55)
 
-        // 进度条起点
+        // Top 5 标题
+        ctx.fillStyle = '#000000'
+        ctx.font = `18px ${fontFamily}`
+        ctx.fillText('Top 5 language time:', 50, 100)
+
+        // 语言条形图
         const barStartX = 50
         const barStartY = 140
-        const barHeight = 10 // 进度条高度减少一半
+        const barHeight = 10
         const barMaxWidth = 400
-        const barRadius = barHeight / 2 // 圆角半径
+        const barRadius = barHeight / 2
 
-        ctx.fillStyle = '#000000'
-        ctx.font = '20px Rounded'
-        ctx.fillText('Top 5 language time:\n', 50, 110)
-
-        // 颜色数组
         const colors = ['#ff4b5c', '#ffab00', '#4caf50', '#42a5f5', '#9c27b0']
 
-        // 绘制进度条
         topLanguages.forEach((lang, index) => {
           const langTime = lang.total_seconds / 3600
           const percentage = lang.total_seconds / totalCodingTime
-          const barWidth = Math.max(percentage * barMaxWidth, 5) // 确保进度条不会太小
+          const barWidth = Math.max(percentage * barMaxWidth, 5)
 
-          // 语言名
+          // 语言名称和时间
           ctx.fillStyle = '#000000'
-          ctx.font = '16px Rounded'
-          ctx.fillText(`${lang.name}: ${langTime.toFixed(2)} hrs`, barStartX, barStartY + index * 35 - 5)
+          ctx.font = `14px ${fontFamily}`
+          ctx.fillText(`${lang.name}: ${langTime.toFixed(2)} hrs`, barStartX, barStartY + index * 30 - 15)
 
-          // 进度条背景（浅灰色）
+          // 背景条
           ctx.fillStyle = '#d3d3d3'
           ctx.beginPath()
-          ctx.roundRect(barStartX, barStartY + index * 35, barMaxWidth, barHeight, barRadius)
+          ctx.roundRect(barStartX, barStartY + index * 30, barMaxWidth, barHeight, barRadius)
           ctx.fill()
 
-          // 渐变进度条（从左到右颜色加深）
-          const gradient = ctx.createLinearGradient(barStartX, barStartY + index * 35, barStartX + barWidth, barStartY + index * 35)
-          gradient.addColorStop(0, colors[index % colors.length] + '80') // 浅色（透明度 50%）
-          gradient.addColorStop(1, colors[index % colors.length]) // 深色
+          // 渐变条
+          const gradient = ctx.createLinearGradient(barStartX, 0, barStartX + barWidth, 0)
+          gradient.addColorStop(0, colors[index % colors.length] + '80')
+          gradient.addColorStop(1, colors[index % colors.length])
 
           ctx.fillStyle = gradient
           ctx.beginPath()
-          ctx.roundRect(barStartX, barStartY + index * 35, barWidth, barHeight, barRadius)
+          ctx.roundRect(barStartX, barStartY + index * 30, barWidth, barHeight, barRadius)
           ctx.fill()
         })
 
-        // 绘制用户头像（右上角，圆角）
+        // 用户头像
         if (avatarUrl) {
-          const avatarImage = await loadImage(avatarUrl)
-          const avatarSize = 90
-          const avatarX = 360
-          const avatarY = 20
-          const cornerRadius = 10
+          try {
+            const avatarImage = await loadImage(avatarUrl)
+            const avatarSize = 80
+            const avatarX = 370
+            const avatarY = 20
+            const cornerRadius = 10
 
-          ctx.save()
-          ctx.beginPath()
-          ctx.moveTo(avatarX + cornerRadius, avatarY)
-          ctx.arcTo(avatarX + avatarSize, avatarY, avatarX + avatarSize, avatarY + avatarSize, cornerRadius)  // 右上角
-          ctx.arcTo(avatarX + avatarSize, avatarY + avatarSize, avatarX, avatarY + avatarSize, cornerRadius)  // 右下角
-          ctx.arcTo(avatarX, avatarY + avatarSize, avatarX, avatarY, cornerRadius)  // 左下角
-          ctx.arcTo(avatarX, avatarY, avatarX + avatarSize, avatarY, cornerRadius)  // 左上角
-          ctx.closePath()
-        
-          // 设置剪切区域
-          ctx.clip()
-        
-          // 绘制头像图片
-          ctx.drawImage(avatarImage, avatarX, avatarY, avatarSize, avatarSize)
-          ctx.restore()
+            ctx.save()
+            ctx.beginPath()
+            ctx.moveTo(avatarX + cornerRadius, avatarY)
+            ctx.arcTo(avatarX + avatarSize, avatarY, avatarX + avatarSize, avatarY + avatarSize, cornerRadius)
+            ctx.arcTo(avatarX + avatarSize, avatarY + avatarSize, avatarX, avatarY + avatarSize, cornerRadius)
+            ctx.arcTo(avatarX, avatarY + avatarSize, avatarX, avatarY, cornerRadius)
+            ctx.arcTo(avatarX, avatarY, avatarX + avatarSize, avatarY, cornerRadius)
+            ctx.closePath()
+            ctx.clip()
+
+            ctx.drawImage(avatarImage, avatarX, avatarY, avatarSize, avatarSize)
+            ctx.restore()
+          } catch (avatarError) {
+            console.log('头像加载失败:', avatarError.message)
+          }
         }
-        // 获取当前时间
-        const currentTime = new Date().toLocaleString()  // 获取当前时间，格式可以根据需要调整
 
-        // 设置时间水印样式
+        // 水印
+        const currentTime = new Date().toLocaleString('zh-CN')
         ctx.save()
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)'  // 白色并带有透明度
-        ctx.font = '12px Rounded'  // 设置字体大小和类型
-        ctx.fillText(`${currentTime}`, 10, canvasHeight - 10)  // 在左下角绘制时间水印
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
+        ctx.font = `12px ${fontFamily}`
+        ctx.textBaseline = 'bottom'
+        ctx.fillText(currentTime, 10, canvasHeight - 5)
         ctx.restore()
 
-        // 生成 Buffer 并返回图片
+        // 输出图片
         const buffer = canvas.toBuffer('image/png')
-
         await session.send(h.image(buffer, 'image/png'))
 
       } catch (error) {
@@ -172,6 +181,14 @@ export function apply(ctx: Context) {
 
 // 获取用户头像 URL
 async function getAvatarUrl(username: string) {
-  // 直接构造头像 URL
-  return `https://wakatime.com/photo/@${username}`
+  try {
+    // 先检查头像是否存在
+    const response = await axios.head(`https://wakatime.com/photo/@${username}`)
+    if (response.status === 200) {
+      return `https://wakatime.com/photo/@${username}`
+    }
+  } catch (error) {
+    console.log('无法获取用户头像')
+  }
+  return null
 }
